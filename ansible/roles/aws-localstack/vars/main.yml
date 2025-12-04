@@ -1,0 +1,28 @@
+---
+# ECR
+ecr_repo_name: calculator-app-repo
+
+# EKS
+eks_cluster_name: calculator-eks-cluster
+eks_version: "1.30"
+eks_subnets: []
+eks_security_groups: []
+
+# RDS
+rds_instance_name: calculator-postgres
+rds_instance_class: db.t3.micro
+rds_username: postgres
+rds_password: "{{ lookup('env', 'LOCALSTACK_RDS_PASSWORD') | default('localstack') }}"
+rds_storage: 20
+
+# Elasticache
+elasticache_cluster_name: calculator-redis
+elasticache_node_type: cache.t3.micro
+elasticache_num_nodes: 1
+
+# SQS
+sqs_queue_name: calculator-queue
+
+# CloudFront
+cloudfront_origin_domain: example-avidity-test.net
+cloudfront_origin_id: calculator-origin

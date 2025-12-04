@@ -1,0 +1,135 @@
+---
+###########################################
+# SET LOCALSTACK ENDPOINT
+###########################################
+- name: Set AWS endpoint for LocalStack if enabled
+  set_fact:
+    aws_endpoint_url: "{{ localstack_endpoint }}"
+  when: use_localstack
+
+
+###########################################
+# CREATE ECR REPOSITORY (manual AWS CLI)
+###########################################
+- name: Create ECR repository
+  ansible.builtin.command: >
+    aws ecr create-repository
+    --repository-name {{ ecr_repo_name }}
+    --region {{ aws_region }}
+    {{ '--endpoint-url ' + aws_endpoint_url if use_localstack else '' }}
+  register: create_ecr
+  failed_when: >
+    create_ecr.rc != 0 and
+    "RepositoryAlreadyExistsException" not in create_ecr.stderr
+
+
+###########################################
+# EKS CLUSTER CREATION
+###########################################
+# LocalStack does not support EKS, so we simulate the creation of one
+###########################################
+- name: Simulate EKS creation (LocalStack limitation)
+  debug:
+    msg: >
+      "LocalStack does NOT support EKS. Skipping real creation and marking as simulated."
+  when: use_localstack
+
+- name: Create EKS cluster
+  community.aws.eks_cluster:
+    name: "{{ eks_cluster_name }}"
+    region: "{{ aws_region }}"
+    version: "{{ eks_version }}"
+    subnets: "{{ eks_subnets }}"
+    security_groups: "{{ eks_security_groups }}"
+    role_arn: "{{ eks_role_arn }}"
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ real_aws_access_key_id }}"
+    AWS_SECRET_ACCESS_KEY: "{{ real_aws_secret_key }}"
+    AWS_DEFAULT_REGION: "{{ aws_region }}"
+  when: not use_localstack
+  register: eks_result
+  notify: wait_for_eks
+
+
+###########################################
+# CREATE RDS INSTANCE
+###########################################
+- name: Create RDS PostgreSQL instance
+  amazon.aws.rds_instance:
+    db_instance_identifier: "{{ rds_instance_name }}"
+    db_instance_class: "{{ rds_instance_class }}"
+    engine: postgres
+    master_username: "{{ rds_username }}"
+    master_user_password: "{{ rds_password }}"
+    allocated_storage: "{{ rds_storage }}"
+    region: "{{ aws_region }}"
+    endpoint_url: "{{ aws_endpoint_url | default(omit) }}"
+  environment:
+    AWS_ACCESS_KEY_ID: test
+    AWS_SECRET_ACCESS_KEY: test
+    AWS_DEFAULT_REGION: "{{ aws_region }}"
+    AWS_EC2_METADATA_DISABLED: true
+  register: rds_result
+  notify: wait_for_rds
+
+
+###########################################
+# CREATE ELASTICACHE REDIS CLUSTER
+###########################################
+- name: Create Elasticache Redis cluster
+  community.aws.elasticache:
+    name: "calculator-redis"
+    state: present
+    engine: "redis"
+    node_type: "cache.t3.micro"
+    num_nodes: 1
+    cache_engine_version: "7.0"
+    cache_subnet_group: ""
+    security_group_ids: []
+    endpoint_url: "{{ aws_endpoint_url }}"
+    region: "{{ aws_region }}"
+    validate_certs: false
+    wait: false
+  when: use_localstack
+
+
+
+###########################################
+# CREATE SQS QUEUE
+###########################################
+- name: Create SQS queue
+  community.aws.sqs_queue:
+    name: "{{ sqs_queue_name }}"
+    region: "{{ aws_region }}"
+    endpoint_url: "{{ aws_endpoint_url | default(omit) }}"
+  environment:
+    AWS_ACCESS_KEY_ID: test
+    AWS_SECRET_ACCESS_KEY: test
+    AWS_DEFAULT_REGION: "{{ aws_region }}"
+    AWS_EC2_METADATA_DISABLED: true
+  register: sqs_result
+
+
+###########################################
+# CREATE CLOUD FRONT DISTRIBUTION
+###########################################
+# LocalStack does not support CloudFront, so we simulate the creation of a distribution
+###########################################
+- name: Simulate CloudFront creation (LocalStack)
+  debug:
+    msg: "LocalStack does NOT support CloudFront. Skipping CloudFront creation."
+  when: use_localstack
+
+- name: Create CloudFront distribution (REAL AWS ONLY)
+  community.aws.cloudfront_distribution:
+    origins:
+      - domain_name: "{{ cloudfront_origin_domain }}"
+        id: "{{ cloudfront_origin_id }}"
+    enabled: true
+    region: "{{ aws_region }}"
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ real_aws_access_key_id }}"
+    AWS_SECRET_ACCESS_KEY: "{{ real_aws_secret_key }}"
+    AWS_DEFAULT_REGION: "{{ aws_region }}"
+  when: not use_localstack
+  register: cloudfront_result
