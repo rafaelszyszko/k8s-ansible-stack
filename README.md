@@ -19,7 +19,11 @@ This repository contains a complete stack for deploying a multi-component applic
 
 ### Ansible:
 
-- Ansible installed (`ansible --version`).
+- **Ansible installed** (`ansible --version` to verify). To install:
+  - **Mac (using Homebrew)**: `brew install ansible`.
+  - **Linux (Ubuntu/Debian/apt-based)**: Ensure Python3 and pip are installed (`sudo apt update && sudo apt install -y python3 python3-pip`), then `pip3 install ansible`.
+  - **Windows (via WSL or native)**: Use WSL with Ubuntu (install Python3/pip as above, then `pip3 install ansible`). Alternatively, install via pip in a Python environment.
+  - Verify: Run `ansible --version` after installation.
 - AWS credentials configured (via `aws configure` or environment variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`).
 - Ansible collections: `ansible-galaxy collection install community.aws amazon.aws`.
 
