@@ -1,0 +1,9 @@
+---
+galaxy_info:
+  author: rszyszko
+  description: Role to provision AWS infrastructure for calculator app
+  license: MIT
+dependencies: []
+collections:
+  - amazon.aws
+  - community.aws

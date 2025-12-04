@@ -1,0 +1,16 @@
+---
+- name: wait_for_eks
+  community.aws.eks_cluster:
+    name: "{{ eks_cluster_name }}"
+    state: present
+    wait: true
+    wait_timeout: 1200
+    region: "{{ aws_region }}"
+
+
+- name: wait_for_rds
+  amazon.aws.rds_instance:
+    db_instance_identifier: "{{ rds_instance_name }}"
+    region: "{{ aws_region }}"
+    aws_endpoint_url: "{{ aws_endpoint_url | default(omit) }}"
+  when: rds_result.changed
